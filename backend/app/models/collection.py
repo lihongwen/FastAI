@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
 from ..database import Base
 
@@ -13,6 +14,9 @@ class Collection(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # 与VectorRecord的关系
+    vectors = relationship("VectorRecord", back_populates="collection", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Collection(id={self.id}, name='{self.name}', dimension={self.dimension})>"

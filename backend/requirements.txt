@@ -6,3 +6,5 @@ pgvector
 python-dotenv
 pydantic
 python-multipart
+openai
+dashscope

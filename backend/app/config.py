@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     app_name: str = "pgvector Collection Manager"
     debug: bool = True
     
+    # 阿里云百炼API配置
+    dashscope_api_key: str = os.getenv("DASHSCOPE_API_KEY", "")
+    dashscope_base_url: str = os.getenv(
+        "DASHSCOPE_BASE_URL", 
+        "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    )
+    
     class Config:
         env_file = ".env"
 
