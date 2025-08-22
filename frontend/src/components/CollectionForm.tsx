@@ -29,7 +29,6 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    dimension: 768,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,21 +40,18 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
       setFormData({
         name: collection.name,
         description: collection.description || '',
-        dimension: collection.dimension,
       });
     } else {
       setFormData({
         name: '',
         description: '',
-        dimension: 768,
       });
     }
     setError(null);
   }, [collection, open]);
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = field === 'dimension' ? parseInt(event.target.value) || 768 : event.target.value;
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, [field]: event.target.value }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -81,7 +77,6 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
       } else {
         const createData: CollectionCreate = {
           name: formData.name.trim(),
-          dimension: formData.dimension,
         };
         if (formData.description.trim()) {
           createData.description = formData.description.trim();
@@ -144,18 +139,9 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
             />
             
             {!isEdit && (
-              <TextField
-                margin="normal"
-                label="Vector Dimension"
-                type="number"
-                fullWidth
-                variant="outlined"
-                value={formData.dimension}
-                onChange={handleChange('dimension')}
-                disabled={loading}
-                inputProps={{ min: 1, max: 2000 }}
-                helperText="The dimension of vectors that will be stored in this collection (1-2000)"
-              />
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Vector dimension is automatically set to 1024 for all collections.
+              </Alert>
             )}
           </Box>
         </DialogContent>

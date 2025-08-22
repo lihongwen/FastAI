@@ -30,7 +30,7 @@ This is a full-stack pgvector Collection Manager built with FastAPI (Python back
 
 ### Environment Setup
 ```bash
-# Create and activate Python virtual environment
+# Create and activate Python virtual environment (located at project root)
 python3 -m venv venv
 source venv/bin/activate
 
@@ -40,6 +40,11 @@ pip install -r backend/requirements.txt pydantic-settings
 # Install frontend dependencies
 cd frontend && npm install
 ```
+
+### Virtual Environment
+- **Location**: `venv/` in project root directory
+- **Activation**: `source venv/bin/activate` (from project root)
+- **Dependencies**: Managed via `backend/requirements.txt`
 
 ### Running Services
 ```bash
@@ -96,3 +101,33 @@ cd frontend && npm run build
 - Validates unique collection names
 - Handles table rename operations during collection updates
 - Implements soft deletion with table cleanup
+
+## API Endpoints
+
+### Base URLs
+- **Backend API**: `http://localhost:8000`
+- **API Base Path**: `/api`
+- **Health Check**: `GET /health`
+
+### Collection Management API
+- `GET /api/collections/` - Get all collections
+- `GET /api/collections/{id}` - Get specific collection by ID
+- `POST /api/collections/` - Create new collection
+- `PUT /api/collections/{id}` - Update collection (rename/description)
+- `DELETE /api/collections/{id}` - Delete collection (soft delete)
+
+### API Request/Response Examples
+```bash
+# Create collection
+curl -X POST "http://localhost:8000/api/collections/" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my_collection","description":"Test collection","dimension":768}'
+
+# Get all collections
+curl -X GET "http://localhost:8000/api/collections/"
+
+# Update collection
+curl -X PUT "http://localhost:8000/api/collections/1" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"renamed_collection","description":"Updated description"}'
+```

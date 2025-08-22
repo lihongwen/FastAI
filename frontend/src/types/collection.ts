@@ -11,7 +11,7 @@ export interface Collection {
 export interface CollectionCreate {
   name: string;
   description?: string;
-  dimension?: number;
+  // dimension is fixed at 1024, not user-configurable
 }
 
 export interface CollectionUpdate {
