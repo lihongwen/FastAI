@@ -19,6 +19,8 @@ This is a **command-line interface (CLI)** for managing PostgreSQL collections w
 ### Key Features
 - **Collection CRUD**: Command-line collection creation, listing, renaming, and deletion
 - **Vector Operations**: Add vectors, search similar content, list vectors
+- **Document Processing**: Support for PDF, CSV, and text file parsing with automatic chunking
+- **AI-Powered Summarization**: Intelligent search result summarization using Qwen LLM
 - **Rich Output**: Beautiful tables, JSON export, colored output with Rich library
 - **Embedding Integration**: Automatic text-to-vector conversion with DashScope text-embedding-v4
 - **High-Performance Search**: HNSW indexing with tunable precision levels
@@ -48,7 +50,15 @@ FastAI/
 │   │   ├── collection_service.py     # Collection management
 │   │   ├── vector_service.py         # Vector operations
 │   │   ├── embedding_service.py      # Text embedding generation
-│   │   └── cleanup_service.py        # Automatic cleanup of expired collections
+│   │   ├── cleanup_service.py        # Automatic cleanup of expired collections
+│   │   ├── document_service.py       # Document processing and chunking
+│   │   ├── llm_service.py           # LLM integration for summarization
+│   │   ├── chunking_service.py      # Text chunking algorithms
+│   │   └── parsers/                 # File format parsers
+│   │       ├── base_parser.py       # Base parser interface
+│   │       ├── pdf_parser.py        # PDF document parsing
+│   │       ├── csv_parser.py        # CSV file parsing
+│   │       └── text_parser.py       # Plain text parsing
 │   └── utils/                        # CLI utilities
 │       ├── __init__.py
 │       ├── formatters.py             # Output formatting
@@ -75,8 +85,14 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
+# Install LLM/AI features dependencies (optional)
+pip install openai socksio
+
 # Install package in development mode
 pip install -e .
+
+# Install with development dependencies
+pip install -e ".[dev]"
 ```
 
 ### Database Setup
@@ -339,6 +355,85 @@ python -m pgvector_cli delete-collection test_collection --confirm
 - **VectorService**: Handles vector CRUD operations and search
 - **EmbeddingService**: Text-to-vector conversion with DashScope text-embedding-v4
 - **CleanupService**: Automatic cleanup of expired soft-deleted collections
+
+## Development Commands
+
+### Code Quality and Testing
+```bash
+# Run linting with ruff
+ruff check .
+ruff check --fix .  # Auto-fix issues
+
+# Run type checking with mypy
+mypy pgvector_cli/
+
+# Run tests with pytest
+pytest                           # Run all tests
+pytest tests/unit/              # Run unit tests only
+pytest tests/integration/       # Run integration tests only
+pytest -v                       # Verbose output
+pytest -k test_collection      # Run specific test pattern
+
+# Run tests with coverage
+pytest --cov=pgvector_cli --cov-report=html
+# View coverage report in htmlcov/index.html
+
+# Run specific test file
+pytest tests/unit/test_collection_service.py
+pytest tests/unit/test_collection_service.py::TestCollectionService::test_create_collection
+```
+
+### Development Workflow
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run full development check (recommended before commits)
+ruff check . && mypy pgvector_cli/ && pytest
+
+# Quick code format and check
+ruff check --fix . && ruff format .
+
+# Install pre-commit hooks (if available)
+pre-commit install
+
+# Manual testing workflow
+python -m pgvector_cli status
+python -m pgvector_cli create-collection test_collection --description "Test collection"
+python -m pgvector_cli add-vector test_collection --text "test content"
+python -m pgvector_cli search test_collection --query "test"
+python -m pgvector_cli delete-collection test_collection --confirm
+```
+
+### Database Development
+```bash
+# Check database status
+python -m pgvector_cli status
+
+# Inspect database tables directly
+psql $DATABASE_URL -c "\\dt"
+
+# View collection tables
+psql $DATABASE_URL -c "SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'vectors_%';"
+
+# Check pgvector extension
+psql $DATABASE_URL -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+
+# Drop test collections (cleanup)
+python -m pgvector_cli list-collections --format json | jq -r '.[].name' | grep test | xargs -I {} python -m pgvector_cli delete-collection {} --confirm
+```
+
+### Package Building and Distribution
+```bash
+# Build package
+python -m build
+
+# Install from local build
+pip install dist/pgvector_cli-*.whl
+
+# Clean build artifacts
+rm -rf build/ dist/ *.egg-info/
+```
 
 ## Integration Examples
 
