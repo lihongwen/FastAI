@@ -69,9 +69,14 @@ FastAI/
 ## Development Environment
 
 ### Prerequisites
-- **Python**: 3.8+ (recommended 3.11+)
-- **PostgreSQL**: 12+ with pgvector extension enabled
+- **Python**: 3.13.4 (exact version for compatibility)
+- **PostgreSQL**: 14.18 with pgvector 0.8.0 extension enabled
 - **Database Permissions**: CREATE TABLE permissions for dynamic table management
+
+### Platform Support
+- **macOS**: Native development environment (Darwin 24.6.0, arm64)  
+- **WSL 2**: Full production deployment support (Ubuntu 22.04 LTS recommended)
+- **Linux**: Compatible with most distributions
 
 ### Environment Setup
 ```bash
@@ -542,3 +547,39 @@ psql $DATABASE_URL -c "\d vectors_collection_name"
 # Check pgvector extension
 psql $DATABASE_URL -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 ```
+
+## WSL 部署
+
+本项目完全支持在WSL 2环境下部署，与macOS环境保持完全一致。
+
+### WSL 部署文档
+- **完整部署指南**: 查看 [WSL_DEPLOYMENT.md](WSL_DEPLOYMENT.md)
+- **部署检查清单**: 查看 [WSL_DEPLOYMENT_CHECKLIST.md](WSL_DEPLOYMENT_CHECKLIST.md)
+- **兼容性验证**: 运行 `python verify_wsl_compatibility.py`
+
+### 版本兼容性保证
+WSL环境严格按照以下版本配置，确保与macOS生产环境完全一致：
+
+| 组件 | 版本 | 状态 |
+|------|------|------|
+| Python | 3.13.4 | ✅ 已验证 |
+| PostgreSQL | 14.18 | ✅ 已验证 |
+| pgvector | 0.8.0 | ✅ 已验证 |
+| 所有Python依赖 | 精确版本匹配 | ✅ requirements.txt |
+
+### WSL快速验证
+```bash
+# 1. 运行兼容性检查
+python verify_wsl_compatibility.py
+
+# 2. 检查数据库状态
+python -m pgvector_cli status
+
+# 3. 功能测试
+python -m pgvector_cli create-collection test_wsl --dimension 1024
+python -m pgvector_cli add-vector test_wsl --text "WSL测试"
+python -m pgvector_cli search test_wsl --query "测试" --limit 1
+python -m pgvector_cli delete-collection test_wsl --confirm
+```
+
+预期所有命令都应正常执行，无任何错误。
