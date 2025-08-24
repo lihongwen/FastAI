@@ -1,7 +1,7 @@
 """Create test Excel file with complex structure."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 # Create test data with empty rows at beginning
 data = {
@@ -10,7 +10,7 @@ data = {
     'Industry': ['', '', 'Technology', 'Technology', 'Technology', 'E-commerce', 'Automotive', ''],
     'Founded': ['Header Info', 'Data Below', 1976, 1998, 1975, 1994, 2003, ''],
     'Employees': ['', '', 154000, 139995, 221000, 1608000, 127855, ''],
-    'Description': ['', '', 
+    'Description': ['', '',
                    'Leading technology company known for iPhone, Mac, and innovative consumer electronics',
                    'Search engine giant and technology conglomerate with diverse portfolio including Android and Cloud services',
                    'Software corporation famous for Windows OS, Office suite, and cloud computing platform Azure',
@@ -25,7 +25,7 @@ df = pd.DataFrame(data)
 with pd.ExcelWriter('/Users/lihongwen/Documents/augment-projects/FastAI/test_documents/test_companies.xlsx', engine='openpyxl') as writer:
     # Main sheet with data
     df.to_excel(writer, sheet_name='Companies', index=False)
-    
+
     # Summary sheet
     summary_data = {
         'Metric': ['Total Companies', 'Average Revenue', 'Top Industry', 'Oldest Company'],
@@ -33,7 +33,7 @@ with pd.ExcelWriter('/Users/lihongwen/Documents/augment-projects/FastAI/test_doc
     }
     summary_df = pd.DataFrame(summary_data)
     summary_df.to_excel(writer, sheet_name='Summary', index=False)
-    
+
     # Empty sheet
     empty_df = pd.DataFrame()
     empty_df.to_excel(writer, sheet_name='Empty', index=False)

@@ -1,14 +1,15 @@
 """Pytest configuration and fixtures."""
 
-import pytest
-import tempfile
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import tempfile
 from unittest.mock import Mock, patch
 
-from pgvector_cli.database import Base, get_db_session
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from pgvector_cli.config import Settings
+from pgvector_cli.database import Base, get_db_session
 
 
 @pytest.fixture(scope="session")
@@ -80,14 +81,14 @@ def temp_json_file():
         {"content": "Second test document", "metadata": {"id": 2}},
         {"content": "Third test document", "metadata": {"id": 3}}
     ]
-    
+
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         import json
         json.dump(data, f)
         temp_path = f.name
-    
+
     yield temp_path
-    
+
     # Cleanup
     try:
         os.unlink(temp_path)

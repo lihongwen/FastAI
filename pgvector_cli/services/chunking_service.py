@@ -80,18 +80,18 @@ class ChunkingService:
         sentences = self._split_into_sentences(text)
 
         if not sentences:
-            return self._create_single_chunk(document, start_index)
+            return [self._create_single_chunk(document, start_index)]
 
-        current_chunk = ""
         current_length = 0
         chunk_sentences = []
         chunk_index = 0
 
-        for i, sentence in enumerate(sentences):
+        for _i, sentence in enumerate(sentences):
             sentence_length = len(sentence)
 
             # If adding this sentence would exceed chunk_size, create a chunk
-            if current_length + sentence_length > self.chunk_size and current_chunk:
+            # 修复核心Bug：检查chunk_sentences而不是current_chunk
+            if current_length + sentence_length > self.chunk_size and chunk_sentences:
                 # Create chunk
                 chunk_content = " ".join(chunk_sentences)
                 chunks.append(self._create_chunk_from_content(
@@ -104,13 +104,12 @@ class ChunkingService:
 
                 # Prepare next chunk with overlap
                 overlap_sentences = self._get_overlap_sentences(chunk_sentences)
-                current_chunk = " ".join(overlap_sentences)
-                current_length = len(current_chunk)
+                current_length = len(" ".join(overlap_sentences))
                 chunk_sentences = overlap_sentences.copy()
 
             # Add current sentence
             chunk_sentences.append(sentence)
-            current_length += sentence_length + (1 if current_chunk else 0)  # +1 for space
+            current_length += sentence_length + (1 if chunk_sentences and len(chunk_sentences) > 1 else 0)  # +1 for space
 
         # Add final chunk if there's remaining content
         if chunk_sentences:
@@ -126,8 +125,8 @@ class ChunkingService:
 
     def _split_into_sentences(self, text: str) -> List[str]:
         """Split text into sentences for better chunking boundaries."""
-        # Simple sentence splitting - can be improved with spaCy or nltk
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        # 支持中英文标点符号的句子分割
+        sentences = re.split(r'(?<=[.!?。！？])\s*', text)
 
         # Filter out empty sentences and clean
         sentences = [s.strip() for s in sentences if s.strip()]
@@ -155,6 +154,37 @@ class ChunkingService:
 
         return final_sentences
 
+    def _create_single_chunk(self, document: ParsedDocument, start_index: int) -> TextChunk:
+        """Create a single chunk from the entire document content."""
+        content = document.content.strip()
+
+        # 保护机制：如果内容过长，强制分割
+        if len(content) > 8000:
+            content = content[:8000]
+            metadata = document.metadata.copy()
+            metadata.update({
+                'chunking_method': 'single_chunk_truncated',
+                'original_length': len(document.content),
+                'chunk_length': len(content),
+                'fallback_reason': 'no_sentences_detected',
+                'truncation_warning': 'Content was truncated to fit API limits'
+            })
+        else:
+            metadata = document.metadata.copy()
+            metadata.update({
+                'chunking_method': 'single_chunk_fallback',
+                'original_length': len(document.content),
+                'chunk_length': len(content),
+                'fallback_reason': 'no_sentences_detected'
+            })
+
+        return TextChunk(
+            content=content,
+            metadata=metadata,
+            chunk_index=start_index,
+            total_chunks=1
+        )
+
     def _get_overlap_sentences(self, sentences: List[str]) -> List[str]:
         """Get sentences for overlap based on overlap size."""
         if not sentences:
@@ -177,18 +207,34 @@ class ChunkingService:
     def _create_chunk_from_content(self, content: str, original_doc: ParsedDocument,
                                  global_index: int, local_index: int) -> TextChunk:
         """Create a TextChunk from content and metadata."""
-        metadata = original_doc.metadata.copy()
-        metadata.update({
-            'chunking_method': 'sliding_window',
-            'chunk_size': self.chunk_size,
-            'overlap_size': self.overlap,
-            'local_chunk_index': local_index,
-            'original_length': len(original_doc.content),
-            'chunk_length': len(content)
-        })
+        # 关键保护机制：确保内容不超过API限制
+        content = content.strip()
+        if len(content) > 8000:  # 留出安全余量，避免接近8192限制
+            # 强制分割超长内容
+            content = content[:8000]
+            metadata = original_doc.metadata.copy()
+            metadata.update({
+                'chunking_method': 'force_truncated',
+                'chunk_size': self.chunk_size,
+                'overlap_size': self.overlap,
+                'local_chunk_index': local_index,
+                'original_length': len(original_doc.content),
+                'chunk_length': len(content),
+                'truncation_warning': 'Content was truncated to fit API limits'
+            })
+        else:
+            metadata = original_doc.metadata.copy()
+            metadata.update({
+                'chunking_method': 'sliding_window',
+                'chunk_size': self.chunk_size,
+                'overlap_size': self.overlap,
+                'local_chunk_index': local_index,
+                'original_length': len(original_doc.content),
+                'chunk_length': len(content)
+            })
 
         return TextChunk(
-            content=content.strip(),
+            content=content,
             metadata=metadata,
             chunk_index=global_index,
             total_chunks=1  # Will be updated later

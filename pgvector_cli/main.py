@@ -23,13 +23,13 @@ from .exceptions import (
     ConfigurationError,
     PgvectorCLIError,
 )
-from .logging_config import get_logger, setup_logging
+from .logging_config import StructuredLogger, setup_logging
 from .services import CleanupService, CollectionService, DocumentService, LLMService, VectorService
 from .utils import validate_collection_name, validate_dimension
 
 # Initialize logging
 setup_logging()
-logger = get_logger("main")
+logger = StructuredLogger("main")
 
 console = Console()
 
@@ -424,7 +424,7 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
         sys.exit(1)
     except Exception as e:
         console.print(f"[red]Failed to add vector(s): {e}[/red]")
-        logger.error("Error in add-vector command", error=str(e), exc_info=True)
+        logger.error("Error in add-vector command", exc_info=True)
         sys.exit(1)
 
 @cli.command('add-vectors-batch')

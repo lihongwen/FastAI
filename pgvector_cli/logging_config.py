@@ -96,11 +96,16 @@ class StructuredLogger:
         full_message = f"{message} | {extra_info}" if extra_info else message
         self.logger.warning(full_message)
 
-    def error(self, message: str, **kwargs):
+    def error(self, message: str, exc_info: bool = False, **kwargs):
         """Log error message with structured data."""
+        # 分离标准logging参数和自定义字段
+        logging_kwargs = {'exc_info': exc_info}
+
+        # 处理自定义字段
         extra_info = " | ".join([f"{k}={v}" for k, v in kwargs.items()])
         full_message = f"{message} | {extra_info}" if extra_info else message
-        self.logger.error(full_message)
+
+        self.logger.error(full_message, **logging_kwargs)
 
     def debug(self, message: str, **kwargs):
         """Log debug message with structured data."""
