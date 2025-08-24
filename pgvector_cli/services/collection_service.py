@@ -82,6 +82,8 @@ class CollectionService:
     
     def delete_collection(self, collection_id: int) -> bool:
         """Delete collection (soft delete)."""
+        from sqlalchemy.sql import func
+        
         collection = self.get_collection(collection_id)
         if not collection:
             return False
@@ -91,6 +93,7 @@ class CollectionService:
         
         # Soft delete the collection record
         collection.is_active = False
+        collection.deleted_at = func.now()
         self.session.commit()
         
         return True

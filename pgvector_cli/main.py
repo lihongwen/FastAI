@@ -16,10 +16,22 @@ from rich.panel import Panel
 
 from .config import get_settings
 from .database import get_session, init_database
-from .services import CollectionService, VectorService
+from .services import CollectionService, VectorService, CleanupService
 from .utils import format_table, format_json, validate_collection_name, validate_dimension
 
 console = Console()
+
+def auto_cleanup():
+    """Perform automatic cleanup of expired collections."""
+    try:
+        settings = get_settings()
+        session = get_session()
+        cleanup_service = CleanupService(session, settings.soft_delete_retention_days)
+        cleanup_service.auto_cleanup()
+        session.close()
+    except Exception as e:
+        # Silently handle cleanup errors to avoid disrupting main operations
+        pass
 
 @click.group()
 @click.version_option(version="1.0.0")
@@ -75,6 +87,9 @@ def status():
 def create_collection(name: str, dimension: int, description: Optional[str]):
     """Create a new collection."""
     try:
+        # Auto cleanup expired collections
+        auto_cleanup()
+        
         validate_collection_name(name)
         validate_dimension(dimension)
         
@@ -113,6 +128,9 @@ def create_collection(name: str, dimension: int, description: Optional[str]):
 def list_collections(output_format: str):
     """List all collections."""
     try:
+        # Auto cleanup expired collections
+        auto_cleanup()
+        
         session = get_session()
         service = CollectionService(session)
         collections = service.get_collections()

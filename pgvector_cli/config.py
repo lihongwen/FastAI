@@ -23,6 +23,9 @@ class Settings:
             "DASHSCOPE_BASE_URL", 
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
+        
+        # Cleanup configuration
+        self.soft_delete_retention_days: int = int(os.getenv("SOFT_DELETE_RETENTION_DAYS", "30"))
 
 def get_settings() -> Settings:
     """Get application settings."""
