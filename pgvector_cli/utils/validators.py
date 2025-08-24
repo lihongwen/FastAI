@@ -8,24 +8,34 @@ def validate_collection_name(name: str) -> bool:
     if not name:
         raise ValueError("Collection name cannot be empty")
 
-    if len(name) < 2:
-        raise ValueError("Collection name must be at least 2 characters long")
+    if len(name) < 1:
+        raise ValueError("Collection name must be at least 1 character long")
 
-    if len(name) > 50:
-        raise ValueError("Collection name must be 50 characters or less")
+    if len(name) > 100:
+        raise ValueError("Collection name must be 100 characters or less")
 
-    # For security, only allow alphanumeric characters, underscores, and hyphens
-    # Spaces and special characters will be converted to underscores in table names
-    if not re.match(r'^[a-zA-Z0-9_\-\s]+$', name):
-        raise ValueError("Collection name can only contain letters, numbers, underscores, hyphens, and spaces")
+    # Enhanced validation: Allow Unicode letters, numbers, underscores, hyphens, and spaces
+    # This includes Chinese characters (CJK), Arabic, Cyrillic, etc.
+    if not re.match(r'^[\w\-\s]+$', name, re.UNICODE):
+        raise ValueError("Collection name can only contain letters (including Unicode), numbers, underscores, hyphens, and spaces")
 
     # Cannot start or end with space
     if name.startswith(' ') or name.endswith(' '):
         raise ValueError("Collection name cannot start or end with spaces")
 
-    # Warn if name contains characters that will be converted to underscores
-    if ' ' in name or '-' in name:
-        print("Note: Spaces and hyphens in collection name will be converted to underscores in the database table name.")
+    # Check for invalid characters that could cause SQL injection
+    invalid_chars = [';', '--', '/*', '*/', 'DROP', 'DELETE', 'INSERT', 'UPDATE', 'SELECT']
+    name_upper = name.upper()
+    for invalid in invalid_chars:
+        if invalid in name_upper:
+            raise ValueError(f"Collection name cannot contain potentially dangerous content: '{invalid}'")
+
+    # Inform user about table name conversion for non-ASCII characters
+    has_non_ascii = any(ord(char) > 127 for char in name)
+    has_special_chars = ' ' in name or '-' in name
+
+    if has_non_ascii or has_special_chars:
+        print("Note: Non-ASCII characters, spaces and hyphens in collection name will be converted to a safe table name format.")
 
     return True
 

@@ -1,8 +1,8 @@
 """Text chunking service for RAG applications."""
 
-from typing import List, Dict, Any, Optional
 import re
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 from .parsers.base_parser import ParsedDocument
 
@@ -18,39 +18,39 @@ class TextChunk:
 
 class ChunkingService:
     """Service for chunking text content for RAG applications."""
-    
+
     def __init__(self, chunk_size: int = 500, overlap: int = 100):
         self.chunk_size = chunk_size
         self.overlap = overlap
-    
+
     def chunk_documents(self, documents: List[ParsedDocument]) -> List[TextChunk]:
         """Chunk a list of parsed documents."""
         all_chunks = []
         global_chunk_index = 0
-        
+
         for doc in documents:
             # 强制所有文档类型都按照用户设置的chunk_size进行分块
             # 不再根据chunk_type进行特殊处理，严格遵守用户设置
             chunks = self._chunk_text_content(doc, global_chunk_index)
-            
+
             all_chunks.extend(chunks)
             global_chunk_index += len(chunks)
-        
+
         # Update total chunks count
         for chunk in all_chunks:
             chunk.total_chunks = len(all_chunks)
-        
+
         return all_chunks
-    
-    
+
+
     def _chunk_text_content(self, document: ParsedDocument, start_index: int) -> List[TextChunk]:
         """Apply fixed-size chunking with overlap to text content."""
         text = document.content.strip()
-        
+
         # 如果文本为空，跳过
         if not text:
             return []
-        
+
         if len(text) <= self.chunk_size:
             # Text is smaller than chunk size, return as single chunk
             metadata = document.metadata.copy()
@@ -59,65 +59,59 @@ class ChunkingService:
                 'original_length': len(text),
                 'chunk_length': len(text)
             })
-            
+
             return [TextChunk(
                 content=text,
                 metadata=metadata,
                 chunk_index=start_index,
                 total_chunks=1
             )]
-        
+
         # Text is larger than chunk_size, must apply sliding window chunking
         # 这里强制对所有超过chunk_size的文本进行分块
         return self._sliding_window_chunk(document, start_index)
-    
+
     def _sliding_window_chunk(self, document: ParsedDocument, start_index: int) -> List[TextChunk]:
         """Apply sliding window chunking with overlap."""
         text = document.content
         chunks = []
-        
+
         # Split text into sentences for better chunk boundaries
         sentences = self._split_into_sentences(text)
-        
+
         if not sentences:
             return self._create_single_chunk(document, start_index)
-        
+
         current_chunk = ""
         current_length = 0
         chunk_sentences = []
         chunk_index = 0
-        
+
         for i, sentence in enumerate(sentences):
             sentence_length = len(sentence)
-            
-            # 检查当前句子是否超过chunk_size限制
-            if sentence_length > self.chunk_size:
-                logger.warning(f"Sentence too long ({sentence_length} chars), should have been split by _split_into_sentences")
-                # 这种情况不应该发生，说明_split_into_sentences有问题
-                continue
-            
+
             # If adding this sentence would exceed chunk_size, create a chunk
-            if current_length + sentence_length > self.chunk_size and chunk_sentences:
+            if current_length + sentence_length > self.chunk_size and current_chunk:
                 # Create chunk
                 chunk_content = " ".join(chunk_sentences)
                 chunks.append(self._create_chunk_from_content(
-                    chunk_content, 
-                    document, 
+                    chunk_content,
+                    document,
                     start_index + chunk_index,
                     chunk_index
                 ))
                 chunk_index += 1
-                
+
                 # Prepare next chunk with overlap
                 overlap_sentences = self._get_overlap_sentences(chunk_sentences)
                 current_chunk = " ".join(overlap_sentences)
                 current_length = len(current_chunk)
                 chunk_sentences = overlap_sentences.copy()
-            
+
             # Add current sentence
             chunk_sentences.append(sentence)
-            current_length += sentence_length + (1 if chunk_sentences else 0)  # +1 for space
-        
+            current_length += sentence_length + (1 if current_chunk else 0)  # +1 for space
+
         # Add final chunk if there's remaining content
         if chunk_sentences:
             chunk_content = " ".join(chunk_sentences)
@@ -127,24 +121,24 @@ class ChunkingService:
                 start_index + chunk_index,
                 chunk_index
             ))
-        
+
         return chunks
-    
+
     def _split_into_sentences(self, text: str) -> List[str]:
         """Split text into sentences for better chunking boundaries."""
         # Simple sentence splitting - can be improved with spaCy or nltk
         sentences = re.split(r'(?<=[.!?])\s+', text)
-        
+
         # Filter out empty sentences and clean
         sentences = [s.strip() for s in sentences if s.strip()]
-        
+
         # Handle cases where sentences are too long
         final_sentences = []
         for sentence in sentences:
             if len(sentence) > self.chunk_size:  # If sentence is longer than chunk_size
                 # First try to split by punctuation marks
                 parts = re.split(r'[,;:]\s+', sentence)
-                
+
                 # If still too long after punctuation splitting, force split by character count
                 processed_parts = []
                 for part in parts:
@@ -154,22 +148,22 @@ class ChunkingService:
                             processed_parts.append(part[i:i + self.chunk_size])
                     else:
                         processed_parts.append(part)
-                
+
                 final_sentences.extend([p.strip() for p in processed_parts if p.strip()])
             else:
                 final_sentences.append(sentence)
-        
+
         return final_sentences
-    
+
     def _get_overlap_sentences(self, sentences: List[str]) -> List[str]:
         """Get sentences for overlap based on overlap size."""
         if not sentences:
             return []
-        
+
         # Calculate how many sentences to include for overlap
         overlap_text = ""
         overlap_sentences = []
-        
+
         # Start from the end and work backwards
         for sentence in reversed(sentences):
             if len(overlap_text) + len(sentence) <= self.overlap:
@@ -177,10 +171,10 @@ class ChunkingService:
                 overlap_text = " ".join(overlap_sentences)
             else:
                 break
-        
+
         return overlap_sentences
-    
-    def _create_chunk_from_content(self, content: str, original_doc: ParsedDocument, 
+
+    def _create_chunk_from_content(self, content: str, original_doc: ParsedDocument,
                                  global_index: int, local_index: int) -> TextChunk:
         """Create a TextChunk from content and metadata."""
         metadata = original_doc.metadata.copy()
@@ -192,7 +186,7 @@ class ChunkingService:
             'original_length': len(original_doc.content),
             'chunk_length': len(content)
         })
-        
+
         return TextChunk(
             content=content.strip(),
             metadata=metadata,

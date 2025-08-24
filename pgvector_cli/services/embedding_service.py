@@ -54,7 +54,7 @@ class EmbeddingService:
 
         # 如果文本超过API限制，这说明分块系统有问题，应该报错而不是截断
         if len(text) > 8192:
-            logger.error("Text too long for embedding API - this indicates a chunking system bug!", 
+            logger.error("Text too long for embedding API - this indicates a chunking system bug!",
                         text_length=len(text), max_allowed=8192)
             raise EmbeddingError(
                 f"Text too long: {len(text)} characters exceeds API limit of 8192. "

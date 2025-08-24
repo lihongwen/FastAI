@@ -24,7 +24,7 @@ from .exceptions import (
     PgvectorCLIError,
 )
 from .logging_config import get_logger, setup_logging
-from .services import CleanupService, CollectionService, VectorService, DocumentService, LLMService
+from .services import CleanupService, CollectionService, DocumentService, LLMService, VectorService
 from .utils import validate_collection_name, validate_dimension
 
 # Initialize logging
@@ -160,7 +160,7 @@ def list_collections(output_format: str):
         with get_db_session() as session:
             service = CollectionService(session)
             collections = service.get_collections()
-            
+
             # 在会话内提取所有需要的数据
             collections_data = []
             for c in collections:
@@ -311,7 +311,7 @@ def show_collection(name: str, stats: bool):
 @click.option('--chunk-size', type=int, default=500, help='Chunk size for text splitting (default: 500)')
 @click.option('--overlap', type=int, default=100, help='Overlap size between chunks (default: 100)')
 @click.option('--metadata', multiple=True, help='Additional metadata in key=value format')
-def add_vector(collection_name: str, file: Optional[str], text: Optional[str], 
+def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
                chunk_size: int, overlap: int, metadata: tuple):
     """Add vector(s) to a collection from file or text."""
     try:
@@ -319,7 +319,7 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
         if not file and not text:
             console.print("[red]Error: Either --file or --text must be provided[/red]")
             sys.exit(1)
-        
+
         if file and text:
             console.print("[red]Error: Provide either --file or --text, not both[/red]")
             sys.exit(1)
@@ -345,7 +345,7 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
             if file:
                 # Process document file
                 document_service = DocumentService()
-                
+
                 # Validate file type
                 if not document_service.validate_file_type(file):
                     supported = document_service.get_supported_extensions()
@@ -354,17 +354,17 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
                     for ext, desc in supported.items():
                         console.print(f"  {ext}: {desc}")
                     sys.exit(1)
-                
+
                 with console.status(f"[bold green]Processing document '{Path(file).name}'..."):
                     # Process document into chunks
                     chunks = document_service.process_document(file, chunk_size, overlap)
-                
+
                 if not chunks:
                     console.print(f"[red]No content extracted from file: {file}[/red]")
                     sys.exit(1)
 
                 console.print(f"[cyan]Document processed into {len(chunks)} chunks[/cyan]")
-                
+
                 # Prepare data for batch processing
                 contents_and_metadata = []
                 for chunk in chunks:
@@ -380,7 +380,7 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
                             'overlap': overlap
                         }
                     })
-                    
+
                     contents_and_metadata.append({
                         'content': chunk.content,
                         'extra_metadata': combined_metadata
@@ -397,7 +397,7 @@ def add_vector(collection_name: str, file: Optional[str], text: Optional[str],
                 console.print(f"  Source file: {Path(file).name}")
                 console.print(f"  Total chunks: {len(chunks)}")
                 console.print(f"  Vectors created: {len(vector_records)}")
-                
+
                 # Show sample content
                 if chunks:
                     sample_content = chunks[0].content[:100]
@@ -525,7 +525,7 @@ def search_vectors(collection_name: str, query: str, limit: int, output_format: 
                     query=query,
                     limit=limit
                 )
-                
+
                 # Extract all needed data while session is active
                 if results:
                     extracted_results = []
@@ -555,7 +555,7 @@ def search_vectors(collection_name: str, query: str, limit: int, output_format: 
                         search_results=extracted_results,
                         max_results=min(5, len(extracted_results))  # 限制处理前5个结果以控制token使用
                     )
-                    
+
                 if summary_result['success']:
                     llm_summary = summary_result['summary']
                     if 'token_usage' in summary_result:
@@ -563,7 +563,7 @@ def search_vectors(collection_name: str, query: str, limit: int, output_format: 
                         logger.info(f"LLM tokens used: {token_info.get('total_tokens', 0)}")
                 else:
                     console.print(f"[yellow]AI总结生成失败: {summary_result.get('error', 'Unknown error')}[/yellow]")
-                    
+
             except Exception as e:
                 console.print(f"[yellow]AI总结功能暂时不可用: {str(e)}[/yellow]")
                 logger.warning(f"LLM summary failed: {e}")

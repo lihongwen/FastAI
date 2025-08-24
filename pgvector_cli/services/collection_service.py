@@ -281,12 +281,26 @@ class CollectionService:
 
     def _safe_table_name(self, collection_name: str) -> str:
         """Generate a safe table name from collection name."""
-        # Only allow alphanumeric characters and underscores
-        safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', collection_name.lower())
-        # Ensure it starts with a letter or underscore
-        if safe_name and safe_name[0].isdigit():
-            safe_name = f"_{safe_name}"
-        return f"vectors_{safe_name}"
+        import hashlib
+
+        # For names with only ASCII alphanumeric and underscore, use as-is
+        if re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', collection_name):
+            return f"vectors_{collection_name.lower()}"
+
+        # For names with Unicode/special chars, create a hash-based safe name
+        # Keep first few ASCII chars if available, then add hash
+        ascii_part = re.sub(r'[^a-zA-Z0-9]', '', collection_name)[:10]
+
+        # Create a short hash of the full collection name for uniqueness
+        name_hash = hashlib.md5(collection_name.encode('utf-8')).hexdigest()[:8]
+
+        # Combine ASCII part (if any) with hash
+        if ascii_part and ascii_part[0].isalpha():
+            safe_name = f"{ascii_part}_{name_hash}"
+        else:
+            safe_name = f"col_{name_hash}"
+
+        return f"vectors_{safe_name.lower()}"
 
     def _create_vector_table(self, collection_name: str, dimension: int):
         """Create a vector table for the collection."""
