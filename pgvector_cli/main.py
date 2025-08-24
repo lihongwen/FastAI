@@ -70,7 +70,7 @@ def status():
 
 @cli.command('create-collection')
 @click.argument('name')
-@click.option('--dimension', '-d', type=int, default=1024, help='Vector dimension (default: 1024)')
+@click.option('--dimension', '-d', type=int, default=1536, help='Vector dimension (default: 1536, matches DashScope text_embedding_v2)')
 @click.option('--description', help='Collection description')
 def create_collection(name: str, dimension: int, description: Optional[str]):
     """Create a new collection."""
