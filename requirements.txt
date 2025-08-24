@@ -7,3 +7,23 @@ click>=8.0.0
 rich>=13.0.0
 tabulate>=0.9.0
 dashscope>=1.0.0
+numpy>=1.21.0
+openai>=1.0.0
+httpx[socks]>=0.24.0
+socksio>=1.0.0
+
+# Document processing dependencies
+pymupdf4llm>=0.0.7
+python-docx>=1.1.0
+openpyxl>=3.1.0
+python-pptx>=0.6.23
+pandas>=2.0.0
+chardet>=5.2.0
+langchain-text-splitters>=0.0.1
+
+# Development and testing dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+ruff>=0.0.285
+mypy>=1.5.0

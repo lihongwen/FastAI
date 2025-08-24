@@ -21,6 +21,9 @@ This is a **command-line interface (CLI)** for managing PostgreSQL collections w
 - **Vector Operations**: Add vectors, search similar content, list vectors
 - **Rich Output**: Beautiful tables, JSON export, colored output with Rich library
 - **Embedding Integration**: Automatic text-to-vector conversion with DashScope text-embedding-v4
+- **High-Performance Search**: HNSW indexing with tunable precision levels
+- **Vector Optimization**: L2 normalization and MRL transformation for 1024 dimensions
+- **Index Management**: Rebuild and monitor indexes for optimal performance
 - **Batch Operations**: Support for bulk operations via file input
 - **Validation**: Comprehensive input validation and error handling
 - **Auto-cleanup**: Automatic hard deletion of soft-deleted collections after 30 days
@@ -200,7 +203,7 @@ python -m pgvector_cli show-collection my_docs --stats
 
 #### `create-collection <name>`
 Create a new vector collection
-- `--dimension, -d`: Vector dimension (default: 1536)
+- `--dimension, -d`: Vector dimension (fixed: 1024, required)
 - `--description`: Collection description
 
 #### `list-collections`
@@ -242,7 +245,7 @@ Check database connection and pgvector extension status
 - **id**: Unique identifier
 - **name**: Collection name (unique)
 - **description**: Optional description
-- **dimension**: Vector dimension
+- **dimension**: Vector dimension (fixed at 1024)
 - **is_active**: Active status (for soft deletion)
 - **created_at**: Creation timestamp
 - **updated_at**: Last update timestamp
@@ -252,7 +255,7 @@ Check database connection and pgvector extension status
 - **id**: Unique identifier
 - **collection_id**: Foreign key to collection
 - **content**: Original text content
-- **vector**: Vector embedding (pgvector type)
+- **vector**: Vector embedding (pgvector type, 1024 dimensions)
 - **extra_metadata**: JSONB metadata field
 - **created_at**: Creation timestamp
 - **updated_at**: Last update timestamp
@@ -270,9 +273,16 @@ Check database connection and pgvector extension status
 The CLI uses DashScope (阿里云) as the primary embedding service:
 
 1. **DashScope text-embedding-v4**: Set `DASHSCOPE_API_KEY`
-   - High-quality 1536-dimensional embeddings
+   - High-quality embeddings with MRL transformation to 1024 dimensions
    - Optimized for Chinese and English text
    - API endpoint: https://dashscope.console.aliyun.com/
+   - All vectors automatically converted to 1024 dimensions using Multi-Representation Learning (MRL)
+
+#### MRL Vector Transformation
+- **Input**: Native DashScope embeddings (typically 1536 dimensions)
+- **Output**: Standardized 1024-dimensional vectors
+- **Method**: Intelligent dimension reduction using weighted chunking and L2 norm preservation
+- **Benefits**: Maintains semantic quality while ensuring consistent dimensionality
 
 ### Database Configuration
 - Default connection: `postgresql://lihongwen@localhost:5432/postgres`

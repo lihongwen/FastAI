@@ -1,23 +1,25 @@
 """Output formatting utilities for pgvector CLI."""
 
 import json
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from tabulate import tabulate
 
-def format_table(data: List[Dict[str, Any]], headers: List[str] = None, 
+
+def format_table(data: List[Dict[str, Any]], headers: List[str] = None,
                 table_format: str = "grid") -> str:
     """Format data as a table."""
     if not data:
         return "No data to display"
-    
+
     if headers is None:
         headers = list(data[0].keys()) if data else []
-    
+
     rows = []
     for item in data:
         row = [item.get(header, "") for header in headers]
         rows.append(row)
-    
+
     return tabulate(rows, headers=headers, tablefmt=table_format)
 
 def format_json(data: Any, indent: int = 2) -> str:
