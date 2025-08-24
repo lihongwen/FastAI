@@ -7,18 +7,18 @@ from ..config import get_settings
 logger = logging.getLogger(__name__)
 
 class EmbeddingService:
-    """Service for generating text embeddings."""
+    """Service for generating text embeddings using DashScope."""
     
     def __init__(self):
         self.settings = get_settings()
         self._client = None
     
     def _get_client(self):
-        """Get embedding client (lazy initialization)."""
+        """Get DashScope embedding client (lazy initialization)."""
         if self._client is not None:
             return self._client
         
-        # Try DashScope first
+        # Only use DashScope
         if self.settings.dashscope_api_key:
             try:
                 import dashscope
@@ -26,32 +26,16 @@ class EmbeddingService:
                 self._client = "dashscope"
                 return self._client
             except ImportError:
-                logger.warning("DashScope library not available")
-        
-        # Fallback to OpenAI
-        if self.settings.openai_api_key:
-            try:
-                import openai
-                self._client = openai.OpenAI(api_key=self.settings.openai_api_key)
-                return self._client
-            except ImportError:
-                logger.warning("OpenAI library not available")
-        
-        # No embedding service available, return dummy embeddings
-        logger.warning("No embedding service configured, using dummy embeddings")
-        self._client = "dummy"
-        return self._client
+                logger.error("DashScope library not available. Please install: pip install dashscope")
+                raise ImportError("DashScope library is required but not installed")
+        else:
+            logger.error("DashScope API key not configured. Please set DASHSCOPE_API_KEY environment variable")
+            raise ValueError("DashScope API key is required but not configured")
     
     def embed_text(self, text: str) -> List[float]:
-        """Generate embedding for a single text."""
+        """Generate embedding for a single text using DashScope."""
         client = self._get_client()
-        
-        if client == "dashscope":
-            return self._embed_with_dashscope(text)
-        elif isinstance(client, object) and hasattr(client, 'embeddings'):
-            return self._embed_with_openai(text)
-        else:
-            return self._dummy_embedding()
+        return self._embed_with_dashscope(text)
     
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings for multiple texts."""
@@ -64,7 +48,7 @@ class EmbeddingService:
             from dashscope import TextEmbedding
             
             response = TextEmbedding.call(
-                model=TextEmbedding.Models.text_embedding_v2,
+                model="text-embedding-v4",
                 input=text
             )
             
@@ -72,32 +56,17 @@ class EmbeddingService:
                 return response.output['embeddings'][0]['embedding']
             else:
                 logger.error(f"DashScope embedding failed: {response}")
-                return self._dummy_embedding()
+                raise Exception(f"DashScope API error: {response}")
                 
         except Exception as e:
             logger.error(f"DashScope embedding error: {e}")
-            return self._dummy_embedding()
+            raise
     
-    def _embed_with_openai(self, text: str) -> List[float]:
-        """Generate embedding using OpenAI."""
-        try:
-            response = self._client.embeddings.create(
-                model="text-embedding-3-small",
-                input=text
-            )
-            return response.data[0].embedding
-            
-        except Exception as e:
-            logger.error(f"OpenAI embedding error: {e}")
-            return self._dummy_embedding()
-    
-    def _dummy_embedding(self) -> List[float]:
-        """Generate dummy embedding for testing."""
-        import random
-        random.seed(42)  # For reproducible dummy embeddings
-        return [random.random() for _ in range(1024)]
     
     def check_api_status(self) -> bool:
-        """Check if embedding service is available."""
-        client = self._get_client()
-        return client not in [None, "dummy"]
+        """Check if DashScope embedding service is available."""
+        try:
+            client = self._get_client()
+            return client == "dashscope"
+        except:
+            return False

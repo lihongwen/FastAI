@@ -17,13 +17,12 @@ class Settings:
         )
         self.debug: bool = os.getenv("DEBUG", "false").lower() == "true"
         
-        # Embedding service configuration
+        # DashScope embedding service configuration (阿里云)
         self.dashscope_api_key: str = os.getenv("DASHSCOPE_API_KEY", "")
         self.dashscope_base_url: str = os.getenv(
             "DASHSCOPE_BASE_URL", 
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
-        self.openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
 
 def get_settings() -> Settings:
     """Get application settings."""

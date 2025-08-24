@@ -73,38 +73,21 @@ class VectorService:
         # Convert query vector to pgvector format
         from pgvector.sqlalchemy import Vector
         
-        # Build SQL query
-        sql_query = text("""
-        SELECT *, (vector <=> :query_vector) AS distance
-        FROM vector_records 
-        WHERE collection_id = :collection_id
-        ORDER BY distance ASC 
-        LIMIT :limit
-        """)
-        
-        # Execute query with pgvector type
-        result = self.session.execute(sql_query, {
-            'query_vector': query_vector,
-            'collection_id': collection_id,
-            'limit': limit
-        })
+        # Build SQL query using SQLAlchemy ORM with pgvector
+        result = self.session.query(
+            VectorRecord,
+            VectorRecord.vector.cosine_distance(query_vector).label('distance')
+        ).filter(
+            VectorRecord.collection_id == collection_id
+        ).order_by(
+            VectorRecord.vector.cosine_distance(query_vector)
+        ).limit(limit).all()
         
         # Process results
         search_results = []
-        for row in result:
-            # Reconstruct VectorRecord object
-            vector_record = VectorRecord(
-                id=row.id,
-                collection_id=row.collection_id,
-                content=row.content,
-                vector=row.vector,
-                extra_metadata=row.extra_metadata,
-                created_at=row.created_at,
-                updated_at=row.updated_at
-            )
-            
+        for vector_record, distance in result:
             # Convert distance to similarity score (1 - distance)
-            similarity_score = max(0, 1 - row.distance)
+            similarity_score = max(0, 1 - distance)
             search_results.append((vector_record, similarity_score))
         
         return search_results

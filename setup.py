@@ -38,12 +38,9 @@ setup(
         "click>=8.0.0",
         "rich>=13.0.0",
         "tabulate>=0.9.0",
+        "dashscope>=1.0.0",
     ],
     extras_require={
-        "embedding": [
-            "openai>=1.0.0",
-            "dashscope>=1.0.0",
-        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
