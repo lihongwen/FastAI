@@ -20,9 +20,10 @@ This is a **command-line interface (CLI)** for managing PostgreSQL collections w
 - **Collection CRUD**: Command-line collection creation, listing, renaming, and deletion
 - **Vector Operations**: Add vectors, search similar content, list vectors
 - **Rich Output**: Beautiful tables, JSON export, colored output with Rich library
-- **Embedding Integration**: Automatic text-to-vector conversion with multiple providers
+- **Embedding Integration**: Automatic text-to-vector conversion with DashScope text-embedding-v4
 - **Batch Operations**: Support for bulk operations via file input
 - **Validation**: Comprehensive input validation and error handling
+- **Auto-cleanup**: Automatic hard deletion of soft-deleted collections after 30 days
 
 ### Project Structure
 ```
@@ -43,7 +44,8 @@ FastAI/
 │   │   ├── __init__.py
 │   │   ├── collection_service.py     # Collection management
 │   │   ├── vector_service.py         # Vector operations
-│   │   └── embedding_service.py      # Text embedding generation
+│   │   ├── embedding_service.py      # Text embedding generation
+│   │   └── cleanup_service.py        # Automatic cleanup of expired collections
 │   └── utils/                        # CLI utilities
 │       ├── __init__.py
 │       ├── formatters.py             # Output formatting
@@ -95,10 +97,12 @@ DATABASE_URL=postgresql://lihongwen@localhost:5432/postgres
 # Application settings
 DEBUG=false
 
-# Embedding service configuration (optional)
+# DashScope embedding service configuration (阿里云)
 DASHSCOPE_API_KEY=your_api_key_here
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-OPENAI_API_KEY=your_openai_key_here
+
+# Cleanup configuration
+SOFT_DELETE_RETENTION_DAYS=30
 ```
 
 ## CLI Usage
@@ -196,7 +200,7 @@ python -m pgvector_cli show-collection my_docs --stats
 
 #### `create-collection <name>`
 Create a new vector collection
-- `--dimension, -d`: Vector dimension (default: 1024)
+- `--dimension, -d`: Vector dimension (default: 1536)
 - `--description`: Collection description
 
 #### `list-collections`
@@ -242,6 +246,7 @@ Check database connection and pgvector extension status
 - **is_active**: Active status (for soft deletion)
 - **created_at**: Creation timestamp
 - **updated_at**: Last update timestamp
+- **deleted_at**: Soft deletion timestamp (for auto-cleanup)
 
 ### Vector Record Schema
 - **id**: Unique identifier
@@ -259,19 +264,40 @@ Check database connection and pgvector extension status
 - `DEBUG`: Enable debug mode (default: false)
 - `DASHSCOPE_API_KEY`: Alibaba DashScope API key for embeddings
 - `DASHSCOPE_BASE_URL`: DashScope API base URL
-- `OPENAI_API_KEY`: OpenAI API key for embeddings
+- `SOFT_DELETE_RETENTION_DAYS`: Days to keep soft-deleted collections (default: 30)
 
 ### Embedding Services
-The CLI supports multiple embedding providers:
+The CLI uses DashScope (阿里云) as the primary embedding service:
 
-1. **DashScope (Alibaba)**: Set `DASHSCOPE_API_KEY`
-2. **OpenAI**: Set `OPENAI_API_KEY`  
-3. **Dummy**: Fallback with random embeddings for testing
+1. **DashScope text-embedding-v4**: Set `DASHSCOPE_API_KEY`
+   - High-quality 1536-dimensional embeddings
+   - Optimized for Chinese and English text
+   - API endpoint: https://dashscope.console.aliyun.com/
 
 ### Database Configuration
 - Default connection: `postgresql://lihongwen@localhost:5432/postgres`
 - Requires pgvector extension
 - Auto-creates tables on first run
+
+### Auto-cleanup System
+The CLI includes an automatic cleanup system for managing storage efficiently:
+
+#### How it Works
+- **Soft Deletion**: When you delete a collection, it's marked as inactive (`is_active = false`) and the deletion time is recorded (`deleted_at`)
+- **Vector Table Cleanup**: The associated vector table is immediately dropped to free up storage
+- **Metadata Retention**: Collection metadata is kept for 30 days for potential recovery
+- **Auto Hard-deletion**: After 30 days, the collection metadata is permanently deleted from PostgreSQL
+
+#### Configuration
+- `SOFT_DELETE_RETENTION_DAYS`: Configure retention period (default: 30 days)
+- Cleanup runs automatically during normal CLI operations (`list-collections`, `create-collection`)
+- No manual intervention required - the system maintains itself
+
+#### Benefits
+- **Storage Efficiency**: Automatic cleanup prevents database bloat
+- **Safety Buffer**: 30-day retention period prevents accidental permanent loss
+- **Zero Maintenance**: Runs transparently in the background
+- **Configurable**: Adjust retention period based on your needs
 
 ## Development
 
@@ -301,7 +327,8 @@ python -m pgvector_cli delete-collection test_collection --confirm
 ### Service Layer
 - **CollectionService**: Manages collection lifecycle and metadata
 - **VectorService**: Handles vector CRUD operations and search
-- **EmbeddingService**: Text-to-vector conversion with multiple providers
+- **EmbeddingService**: Text-to-vector conversion with DashScope text-embedding-v4
+- **CleanupService**: Automatic cleanup of expired soft-deleted collections
 
 ## Integration Examples
 
@@ -386,8 +413,8 @@ python -m pgvector_cli list-collections --format json | \
    - Check DATABASE_URL connection string
 
 3. **"No embedding service configured"**
-   - Set DASHSCOPE_API_KEY or OPENAI_API_KEY
-   - Dummy embeddings used as fallback
+   - Set DASHSCOPE_API_KEY in .env file
+   - Get API key from https://dashscope.console.aliyun.com/
 
 4. **"Collection already exists"**
    - Use unique collection names
