@@ -145,3 +145,13 @@ class VectorService:
             "total_vectors": total_vectors,
             "dimension": 1024
         }
+
+    def get_vector_count(self, collection_id: int) -> int:
+        """Get the count of vectors in a collection."""
+        return self.session.query(VectorRecord).filter(
+            VectorRecord.collection_id == collection_id
+        ).count()
+
+    def search_vectors(self, collection_id: int, query: str, limit: int = 10) -> List[Tuple[VectorRecord, float]]:
+        """Search for similar vectors (alias for search_similar_vectors)."""
+        return self.search_similar_vectors(collection_id, query, limit)
