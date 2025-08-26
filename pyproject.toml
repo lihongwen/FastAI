@@ -9,18 +9,37 @@ description = "Command-line interface for managing PostgreSQL collections with p
 authors = [{name = "Your Name", email = "your.email@example.com"}]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
+    # Core database and vector dependencies
     "sqlalchemy>=2.0.0",
     "psycopg2-binary>=2.9.0",
-    "pgvector>=0.2.0",
+    "pgvector>=0.4.0",
     "python-dotenv>=1.0.0",
+    # Data models and validation
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    # MCP Server dependencies
+    "mcp>=1.2.0",
+    # CLI dependencies (legacy but still needed)
     "click>=8.0.0",
     "rich>=13.0.0",
     "tabulate>=0.9.0",
+    # AI and embedding services
     "dashscope>=1.0.0",
+    "openai>=1.0.0",
     "numpy>=1.21.0",
+    # HTTP and networking
+    "httpx[socks]>=0.28.0",
+    "socksio>=1.0.0",
+    # Document processing dependencies
+    "pymupdf4llm>=0.0.20",
+    "python-docx>=1.0.0",
+    "openpyxl>=3.1.0",
+    "python-pptx>=1.0.0",
+    "pandas>=2.0.0",
+    "chardet>=5.0.0",
+    "langchain-text-splitters>=0.3.0",
 ]
 
 [project.optional-dependencies]
@@ -34,9 +53,10 @@ dev = [
 
 [project.scripts]
 pgvector-cli = "pgvector_cli.main:cli"
+mcp-server = "mcp_server:main"
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]

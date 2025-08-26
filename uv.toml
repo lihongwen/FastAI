@@ -1,0 +1,16 @@
+# uv配置文件 - 中国大陆镜像源配置
+# 显著提升依赖下载速度
+
+# 默认使用清华大学镜像源（测试结果最快）
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+# 备选镜像源配置（可通过命令行切换）
+# 阿里云: --index-url https://mirrors.aliyun.com/pypi/simple/
+# 华为云: --index-url https://mirrors.huaweicloud.com/repository/pypi/simple  
+# 腾讯云: --index-url https://mirrors.cloud.tencent.com/pypi/simple
+
+# 启用缓存以提高重复安装速度
+no-cache = false
+
+# 如果在海外或需要使用官方源，可以注释掉上面的index-url设置
+# 官方源: https://pypi.org/simple

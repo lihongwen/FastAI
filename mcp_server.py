@@ -672,6 +672,10 @@ def delete_vectors(
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def main() -> None:
+    """Main entry point for the MCP server."""
+    mcp.run()
+
 # Run the server
 if __name__ == "__main__":
-    mcp.run()
+    main()

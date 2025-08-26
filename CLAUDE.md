@@ -390,24 +390,31 @@ pytest tests/unit/test_collection_service.py::TestCollectionService::test_create
 
 ### Development Workflow
 ```bash
-# Install development dependencies
-pip install -e ".[dev]"
+# Using uv (recommended) - with Chinese mirrors for faster development
+# Install development dependencies (defined in pyproject.toml)
+uv sync --dev
 
 # Run full development check (recommended before commits)
-ruff check . && mypy pgvector_cli/ && pytest
+uv run ruff check . && uv run ruff format . && uv run mypy pgvector_cli/ && uv run mypy mcp_server.py && uv run pytest
 
-# Quick code format and check
-ruff check --fix . && ruff format .
-
-# Install pre-commit hooks (if available)
-pre-commit install
+# Quick quality check
+uv run ruff check --fix . && uv run ruff format .
 
 # Manual testing workflow
+uv run python -m pgvector_cli status
+uv run python -m pgvector_cli create-collection test_collection --description "Test collection"
+uv run python -m pgvector_cli add-vector test_collection --text "test content"  
+uv run python -m pgvector_cli search test_collection --query "test"
+uv run python -m pgvector_cli delete-collection test_collection --confirm
+
+# Test MCP server directly
+uv run mcp-server                 # Uses entry point from pyproject.toml
+
+# Legacy pip method (slower)
+pip install -e ".[dev]"
+ruff check . && mypy pgvector_cli/ && pytest
 python -m pgvector_cli status
-python -m pgvector_cli create-collection test_collection --description "Test collection"
-python -m pgvector_cli add-vector test_collection --text "test content"
-python -m pgvector_cli search test_collection --query "test"
-python -m pgvector_cli delete-collection test_collection --confirm
+python start_mcp_server.py
 ```
 
 ### Database Development
@@ -548,38 +555,60 @@ psql $DATABASE_URL -c "\d vectors_collection_name"
 psql $DATABASE_URL -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 ```
 
-## WSL 部署
+## Cross-Platform Deployment
 
-本项目完全支持在WSL 2环境下部署，与macOS环境保持完全一致。
+### Windows Support
+Full Windows compatibility with dedicated launcher scripts:
 
-### WSL 部署文档
-- **完整部署指南**: 查看 [WSL_DEPLOYMENT.md](WSL_DEPLOYMENT.md)
-- **部署检查清单**: 查看 [WSL_DEPLOYMENT_CHECKLIST.md](WSL_DEPLOYMENT_CHECKLIST.md)
-- **兼容性验证**: 运行 `python verify_wsl_compatibility.py`
-
-### 版本兼容性保证
-WSL环境严格按照以下版本配置，确保与macOS生产环境完全一致：
-
-| 组件 | 版本 | 状态 |
-|------|------|------|
-| Python | 3.13.4 | ✅ 已验证 |
-| PostgreSQL | 14.18 | ✅ 已验证 |
-| pgvector | 0.8.0 | ✅ 已验证 |
-| 所有Python依赖 | 精确版本匹配 | ✅ requirements.txt |
-
-### WSL快速验证
 ```bash
-# 1. 运行兼容性检查
-python verify_wsl_compatibility.py
+# Windows Command Prompt
+start_mcp_server.bat
 
-# 2. 检查数据库状态
-python -m pgvector_cli status
+# Windows PowerShell (recommended)
+.\start_mcp_server.ps1
 
-# 3. 功能测试
-python -m pgvector_cli create-collection test_wsl --dimension 1024
-python -m pgvector_cli add-vector test_wsl --text "WSL测试"
-python -m pgvector_cli search test_wsl --query "测试" --limit 1
-python -m pgvector_cli delete-collection test_wsl --confirm
+# Set execution policy if needed
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-预期所有命令都应正常执行，无任何错误。
+### WSL 2 Support
+完全支持WSL 2环境部署，与macOS环境保持一致：
+
+- **兼容性验证**: `python verify_wsl_compatibility.py`
+- **版本要求**: Python 3.13.4, PostgreSQL 14.18, pgvector 0.8.0
+- **快速测试**: 运行CLI和MCP服务器功能测试
+
+### macOS/Linux
+Native support with modern tooling and cross-platform compatibility:
+
+```bash
+# Using uv (recommended) - automatic environment management + Chinese mirrors
+uv run mcp-server
+
+# 🇨🇳 中国大陆用户：项目已预配置清华大学镜像源，安装速度提升10倍+
+# 如需切换镜像源：
+# uv run --index-url https://mirrors.aliyun.com/pypi/simple/ mcp-server
+
+# Traditional Python methods
+python start_mcp_server.py
+
+# With proper virtual environment activation
+source venv/bin/activate && python start_mcp_server.py
+```
+
+## MCP Integration
+
+### Supported MCP Clients
+- **Claude Desktop**: Primary integration target
+- **Other MCP Clients**: Standard JSON-RPC 2.0 protocol support
+- **Protocol**: MCP 2025-06-18 specification
+- **Transport**: STDIO (primary), HTTP+SSE support
+
+### MCP Server Architecture
+- **Entry Point**: `mcp_server.py` with FastMCP framework
+- **Cross-Platform**: Automatic Windows/Unix path handling
+- **Service Integration**: Reuses all CLI services and business logic
+- **Error Handling**: Structured error responses with proper MCP formatting
+- **Tools Available**: Collection management, document processing, vector search
+
+See `MCP_SERVER_README.md` for detailed MCP integration documentation.

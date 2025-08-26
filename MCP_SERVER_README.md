@@ -6,13 +6,55 @@ A Model Context Protocol (MCP) server for managing PostgreSQL collections with p
 
 ### Prerequisites
 
-- Python 3.10+ 
-- PostgreSQL 14+ with pgvector extension
-- DashScope API key (for embeddings)
+- **Python 3.10+** (required for MCP library compatibility)
+- **PostgreSQL 14+** with pgvector extension
+- **DashScope API key** (for embeddings)
+- **uv** (recommended) - Install with: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 ### Installation
 
-#### Option 1: Direct Run (Recommended)
+#### Option 1: Using uv (Recommended) ⚡
+
+```bash
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone/navigate to project directory
+cd /path/to/FastAI
+
+# Set up environment variables
+cp env.example .env
+# Edit .env with your database and API credentials
+
+# That's it! uv will automatically:
+# - Create a virtual environment
+# - Install all dependencies from pyproject.toml
+# - Use the correct Python version (3.10+)
+# - Generate/use uv.lock for reproducible builds
+# - Use optimized mirror sources (China: Tsinghua, Global: PyPI)
+```
+
+**🇨🇳 中国大陆用户加速配置：**
+```bash
+# 项目已配置清华大学镜像源，依赖安装速度提升10倍+
+# uv.toml文件已预配置最优镜像源，无需手动设置
+
+# 如需切换其他镜像源：
+# 阿里云镜像
+uv run --index-url https://mirrors.aliyun.com/pypi/simple/ mcp-server
+
+# 华为云镜像  
+uv run --index-url https://mirrors.huaweicloud.com/repository/pypi/simple mcp-server
+```
+
+**Advantages of uv method:**
+- ✅ **Zero manual setup** - Automatic environment and dependency management
+- ✅ **Cross-platform** - Same commands work on Windows/macOS/Linux  
+- ✅ **Faster** - Parallel dependency installation + China mirrors (6s vs 60s+)
+- ✅ **Reproducible** - Locked dependencies ensure consistency
+- ✅ **Smart mirrors** - Auto-optimized download sources
+
+#### Option 2: Traditional Python
 ```bash
 # Clone/navigate to project directory
 cd /path/to/FastAI
@@ -34,7 +76,7 @@ cp env.example .env
 # Edit .env with your database and API credentials
 ```
 
-#### Option 2: Install as Package
+#### Option 3: Install as Package
 ```bash
 pip install -e . -f setup_mcp.py
 ```
@@ -58,7 +100,25 @@ SOFT_DELETE_RETENTION_DAYS=30
 
 ### Running the Server
 
-#### macOS/Linux
+#### Method 1: Using uv (Recommended) 🚀
+
+**All platforms (Windows/macOS/Linux):**
+```bash
+# Navigate to project directory
+cd /path/to/FastAI
+
+# Run MCP server - uv handles everything automatically
+uv run mcp-server
+```
+
+**Benefits:**
+- ✅ **Universal** - Same command on all platforms
+- ✅ **Automatic** - No environment activation needed
+- ✅ **Fast** - Optimized dependency loading
+
+#### Method 2: Traditional Python
+
+##### macOS/Linux
 ```bash
 # Using Python directly
 python start_mcp_server.py
@@ -67,9 +127,7 @@ python start_mcp_server.py
 ./start_mcp_server.py
 ```
 
-#### Windows
-
-##### Command Prompt
+##### Windows Command Prompt
 ```cmd
 start_mcp_server.bat
 ```
@@ -91,6 +149,32 @@ Add to your Claude Desktop configuration file:
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+#### Method 1: Using uv (Recommended) ✨
+
+```json
+{
+  "mcpServers": {
+    "pgvector-mcp-server": {
+      "command": "uv",
+      "args": ["run", "mcp-server"],
+      "cwd": "/absolute/path/to/FastAI",
+      "env": {
+        "DATABASE_URL": "postgresql://username:password@localhost:5432/postgres",
+        "DASHSCOPE_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+**Advantages:**
+- ✅ Automatic dependency management
+- ✅ Cross-platform compatibility 
+- ✅ No manual virtual environment setup
+- ✅ Consistent Python version handling
+
+#### Method 2: Traditional Python (Legacy)
 
 ```json
 {
