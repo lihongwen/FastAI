@@ -8,6 +8,13 @@ from typing import Any, Dict
 from .config import get_settings
 
 
+class InfoAndBelowFilter(logging.Filter):
+    """Filter that only allows INFO and DEBUG level messages through."""
+    
+    def filter(self, record):
+        return record.levelno <= logging.INFO
+
+
 def get_logging_config() -> Dict[str, Any]:
     """Get logging configuration based on settings."""
     settings = get_settings()
@@ -30,10 +37,22 @@ def get_logging_config() -> Dict[str, Any]:
                 "datefmt": "%Y-%m-%dT%H:%M:%S"
             }
         },
+        "filters": {
+            "info_and_below": {
+                "()": "pgvector_cli.logging_config.InfoAndBelowFilter"
+            }
+        },
         "handlers": {
-            "console": {
+            "console_info": {
+                "class": "logging.StreamHandler", 
+                "level": "INFO",
+                "formatter": "simple",
+                "stream": sys.stdout,
+                "filters": ["info_and_below"]
+            },
+            "console_error": {
                 "class": "logging.StreamHandler",
-                "level": log_level,
+                "level": "WARNING", 
                 "formatter": "simple",
                 "stream": sys.stderr
             },
@@ -49,18 +68,18 @@ def get_logging_config() -> Dict[str, Any]:
         "loggers": {
             "pgvector_cli": {
                 "level": log_level,
-                "handlers": ["console"] if not settings.debug else ["console", "file"],
+                "handlers": ["console_info", "console_error"] if not settings.debug else ["console_info", "console_error", "file"],
                 "propagate": False
             },
             "sqlalchemy.engine": {
                 "level": "INFO" if settings.debug else "WARNING",
-                "handlers": ["console"],
+                "handlers": ["console_info", "console_error"],
                 "propagate": False
             }
         },
         "root": {
             "level": "WARNING",
-            "handlers": ["console"]
+            "handlers": ["console_info", "console_error"]
         }
     }
 

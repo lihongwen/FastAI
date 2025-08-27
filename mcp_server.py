@@ -14,7 +14,7 @@ import sys
 from typing import Any, Dict, List, Optional, Sequence
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from mcp.types import Resource, Tool
 
 # Ensure cross-platform compatibility
@@ -429,27 +429,40 @@ def search_collection(
         return {"success": False, "error": str(e)}
 
 @mcp.tool()
-def add_document(
+async def add_document(
     collection_name: str, 
     file_path: str, 
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    ctx: Optional[Context] = None
 ) -> Dict[str, Any]:
     """
-    Process a document file and add its contents to a collection.
+    Process a document file and add its contents to a collection with progress reporting.
     
     Args:
         collection_name: Name of the target collection
         file_path: Path to the document file (PDF, CSV, TXT, etc.)
         metadata: Optional metadata dictionary
+        ctx: MCP context for progress reporting
     
     Returns:
         Dictionary with processing results
     """
+    import time
+    from pgvector_cli.logging_config import StructuredLogger
+    
+    logger = StructuredLogger("mcp_server.add_document")
+    start_time = time.time()
+    
     try:
+        logger.info(f"开始处理文档", file_path=file_path, collection=collection_name)
+        # Stage 1: Document parsing and validation (0-25%)
+        if ctx:
+            await ctx.report_progress(progress=0, total=100, message="开始解析文档...")
+        
         # Ensure cross-platform path handling
-        file_path = Path(file_path).resolve()
-        if not file_path.exists():
-            return {"success": False, "error": f"File not found: {file_path}"}
+        file_path_obj = Path(file_path).resolve()
+        if not file_path_obj.exists():
+            return {"success": False, "error": f"File not found: {file_path_obj}"}
         
         with get_db_session() as session:
             collection_service = CollectionService(session)
@@ -460,30 +473,82 @@ def add_document(
             if not collection:
                 return {"success": False, "error": f"Collection '{collection_name}' not found"}
             
+            if ctx:
+                await ctx.report_progress(progress=15, total=100, message="验证集合和文件...")
+            
+            # Stage 2: Text chunking (25-50%)
+            chunking_start = time.time()
+            if ctx:
+                await ctx.report_progress(progress=25, total=100, message="正在分块处理文档...")
+            
             # Process document with default chunking parameters
             chunks = document_service.process_document(
-                str(file_path), chunk_size=500, overlap=100
+                str(file_path_obj), chunk_size=500, overlap=100
             )
             
             if not chunks:
                 return {"success": False, "error": "No content extracted from document"}
             
-            # Create vector records from chunks
-            results = []
+            chunking_time = time.time() - chunking_start
+            logger.info("文档分块完成", chunks_count=len(chunks), processing_time_seconds=f"{chunking_time:.2f}")
+            
+            if ctx:
+                await ctx.report_progress(progress=50, total=100, message=f"生成{len(chunks)}个文档块")
+            
+            # Stage 3: Vector generation (50-90%) - True batch processing with single transaction
+            vector_start = time.time()
+            if ctx:
+                await ctx.report_progress(progress=60, total=100, message="准备批量向量生成...")
+            
+            # Prepare all batch data at once for maximum efficiency
+            all_batch_data = []
             for chunk in chunks:
                 # Merge chunk metadata with user metadata
                 combined_metadata = {**chunk.metadata, **(metadata or {})}
-                
-                vector_record = vector_service.create_vector_record(
-                    collection.id, chunk.content, combined_metadata
-                )
-                results.append(vector_record)
+                all_batch_data.append({
+                    'content': chunk.content,
+                    'extra_metadata': combined_metadata
+                })
+            
+            if ctx:
+                await ctx.report_progress(progress=70, total=100, message=f"开始处理{len(all_batch_data)}个文档块（批量模式）...")
+            
+            logger.info("开始批量向量生成", batch_size=len(all_batch_data))
+            
+            # Process all chunks in single batch operation (API calls: 10 texts per batch internally)
+            # Database: Single transaction for all vectors
+            results = vector_service.create_vector_records_batch(collection.id, all_batch_data)
+            
+            vector_time = time.time() - vector_start
+            logger.info("批量向量生成完成", vectors_created=len(results), processing_time_seconds=f"{vector_time:.2f}")
+            
+            if ctx:
+                await ctx.report_progress(progress=85, total=100, message=f"完成批量处理，生成{len(results)}个向量")
+            
+            # Stage 4: Database storage completion (90-100%)
+            if ctx:
+                await ctx.report_progress(progress=90, total=100, message="完成向量存储...")
+                await ctx.report_progress(progress=100, total=100, message="处理完成")
+            
+            total_time = time.time() - start_time
+            logger.info("文档处理完成", 
+                       total_processing_time_seconds=f"{total_time:.2f}",
+                       vectors_created=len(results),
+                       chunks_processed=len(chunks),
+                       avg_time_per_vector=f"{total_time/len(results):.3f}" if results else "N/A")
             
             return {
                 "success": True,
-                "file_path": str(file_path),
+                "file_path": str(file_path_obj),
                 "collection": collection_name,
                 "vectors_created": len(results),
+                "processing_stats": {
+                    "total_time_seconds": f"{total_time:.2f}",
+                    "chunking_time_seconds": f"{chunking_time:.2f}",
+                    "vector_generation_time_seconds": f"{vector_time:.2f}",
+                    "chunks_processed": len(chunks),
+                    "avg_time_per_vector": f"{total_time/len(results):.3f}" if results else "N/A"
+                },
                 "vectors": [
                     {
                         "id": record.id,
@@ -496,6 +561,15 @@ def add_document(
             }
             
     except Exception as e:
+        total_time = time.time() - start_time
+        logger.error("文档处理失败", 
+                    error=str(e), 
+                    processing_time_seconds=f"{total_time:.2f}",
+                    file_path=file_path, 
+                    collection=collection_name,
+                    exc_info=True)
+        if ctx:
+            await ctx.report_progress(progress=0, total=100, message=f"处理失败: {str(e)}")
         return {"success": False, "error": str(e)}
 
 @mcp.tool()
