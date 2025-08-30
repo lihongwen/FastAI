@@ -1,12 +1,13 @@
 {
   "mcpServers": {
     "pgvector-mcp-server": {
-      "command": "uv",
-      "args": ["run", "mcp-server"],
-      "cwd": "/absolute/path/to/FastAI",
+      "command": "/Users/lihongwen/Documents/augment-projects/FastAI/venv/bin/python",
+      "args": [
+        "/Users/lihongwen/Documents/augment-projects/FastAI/start_mcp_server.py"
+      ],
       "env": {
-        "DATABASE_URL": "postgresql://username:password@localhost:5432/postgres",
-        "DASHSCOPE_API_KEY": "your_dashscope_api_key_here"
+        "DATABASE_URL": "postgresql://lihongwen:password@localhost:5432/postgres",
+        "DASHSCOPE_API_KEY": "sk-1dfaa0925d0e4320a0802a9f49ebe0a5"
       }
     }
   }
