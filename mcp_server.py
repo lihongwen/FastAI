@@ -570,9 +570,36 @@ def delete_vectors(
         if not preview_only and not confirm:
             raise ValueError("Deletion requires confirmation. Set confirm=True or use preview_only=True to preview first.")
         
-        # Implementation would continue here...
-        # For now, return a simplified version
-        return {"message": "Delete vectors functionality - implementation simplified"}
+        with get_db_session() as session:
+            collection_service = CollectionService(session)
+            vector_service = VectorService(session)
+            
+            # Find collection
+            collection = collection_service.get_collection_by_name(collection_name)
+            if not collection:
+                raise ValueError(f"Collection '{collection_name}' not found")
+            
+            # Handle file path deletion
+            if file_path:
+                if preview_only:
+                    return vector_service.preview_delete_vectors_by_file(collection.id, file_path)
+                else:
+                    deleted_count = vector_service.delete_file_vectors(collection.id, file_path)
+                    return {
+                        "deleted_count": deleted_count,
+                        "file_path": file_path,
+                        "collection": collection_name,
+                        "message": f"Successfully deleted {deleted_count} vectors from file: {file_path}"
+                    }
+            
+            # Handle date range deletion
+            elif start_date and end_date:
+                if preview_only:
+                    return vector_service.preview_delete_vectors_by_date_range(collection.id, start_date, end_date)
+                else:
+                    result = vector_service.delete_vectors_by_date_range(collection.id, start_date, end_date)
+                    result["collection"] = collection_name
+                    return result
     
     result = safe_call(_delete_vectors)
     return mcp_success(result.data) if result.is_ok() else mcp_error(result.error)

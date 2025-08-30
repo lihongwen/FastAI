@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import func, text
+from sqlalchemy import func, text, and_
 from sqlalchemy.orm import Session
 
 from ..models.collection import Collection
@@ -301,3 +301,159 @@ class VectorService:
         
         self.session.commit()
         return deleted_count
+
+    def delete_vectors_by_date_range(self, collection_id: int, start_date: str, end_date: str) -> Dict[str, Any]:
+        """Delete vectors within a date range."""
+        # Parse date strings
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # If end_date doesn't include time, make it end of day
+            if ' ' not in end_date and 'T' not in end_date:
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+        except ValueError as e:
+            raise ValueError(f"Invalid date format. Use YYYY-MM-DD or ISO format: {e}")
+        
+        if start_dt > end_dt:
+            raise ValueError("start_date must be before or equal to end_date")
+        
+        # Get vectors to delete
+        vectors_to_delete = self.session.query(VectorRecord).filter(
+            and_(
+                VectorRecord.collection_id == collection_id,
+                VectorRecord.created_at >= start_dt,
+                VectorRecord.created_at <= end_dt
+            )
+        ).all()
+        
+        if not vectors_to_delete:
+            return {
+                'deleted_count': 0,
+                'date_range': {'start': start_date, 'end': end_date},
+                'message': 'No vectors found in the specified date range'
+            }
+        
+        # Collect statistics before deletion
+        file_stats = {}
+        for vector in vectors_to_delete:
+            file_path = vector.extra_metadata.get('file_path')
+            if file_path:
+                file_stats[file_path] = file_stats.get(file_path, 0) + 1
+        
+        # Delete vectors
+        deleted_count = self.session.query(VectorRecord).filter(
+            and_(
+                VectorRecord.collection_id == collection_id,
+                VectorRecord.created_at >= start_dt,
+                VectorRecord.created_at <= end_dt
+            )
+        ).delete(synchronize_session='fetch')
+        
+        self.session.commit()
+        
+        return {
+            'deleted_count': deleted_count,
+            'date_range': {'start': start_date, 'end': end_date},
+            'files_affected': file_stats,
+            'message': f'Successfully deleted {deleted_count} vectors from date range {start_date} to {end_date}'
+        }
+
+    def preview_delete_vectors_by_date_range(self, collection_id: int, start_date: str, end_date: str) -> Dict[str, Any]:
+        """Preview vectors that would be deleted within a date range."""
+        # Parse date strings
+        try:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # If end_date doesn't include time, make it end of day
+            if ' ' not in end_date and 'T' not in end_date:
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+        except ValueError as e:
+            raise ValueError(f"Invalid date format. Use YYYY-MM-DD or ISO format: {e}")
+        
+        if start_dt > end_dt:
+            raise ValueError("start_date must be before or equal to end_date")
+        
+        # Get vectors that would be deleted
+        vectors_to_delete = self.session.query(VectorRecord).filter(
+            and_(
+                VectorRecord.collection_id == collection_id,
+                VectorRecord.created_at >= start_dt,
+                VectorRecord.created_at <= end_dt
+            )
+        ).all()
+        
+        # Collect statistics
+        file_stats = {}
+        vector_details = []
+        
+        for vector in vectors_to_delete:
+            file_path = vector.extra_metadata.get('file_path', 'manual_text')
+            file_stats[file_path] = file_stats.get(file_path, 0) + 1
+            
+            vector_details.append({
+                'id': vector.id,
+                'content_preview': vector.content[:100] + '...' if len(vector.content) > 100 else vector.content,
+                'file_path': file_path,
+                'created_at': vector.created_at.isoformat()
+            })
+        
+        return {
+            'preview': True,
+            'vectors_to_delete': len(vectors_to_delete),
+            'date_range': {'start': start_date, 'end': end_date},
+            'files_affected': file_stats,
+            'vector_details': vector_details,
+            'message': f'Would delete {len(vectors_to_delete)} vectors from date range {start_date} to {end_date}'
+        }
+
+    def preview_delete_vectors_by_file(self, collection_id: int, file_path: str) -> Dict[str, Any]:
+        """Preview vectors that would be deleted for a specific file."""
+        file_path_obj = Path(file_path).resolve()
+        file_path_str = str(file_path_obj)
+        file_name = file_path_obj.name
+        
+        # Get vectors that would be deleted
+        vectors_to_delete = self.session.query(VectorRecord).filter(
+            VectorRecord.collection_id == collection_id
+        ).filter(
+            text("(extra_metadata->>'file_path' = :file_path_exact OR "
+                 "extra_metadata->>'file_path' = :file_path_abs OR "
+                 "extra_metadata->>'file_name' = :file_name)")
+        ).params(
+            file_path_exact=file_path,
+            file_path_abs=file_path_str,
+            file_name=file_name
+        ).all()
+        
+        if not vectors_to_delete:
+            return {
+                'preview': True,
+                'vectors_to_delete': 0,
+                'file_path': file_path,
+                'message': f'No vectors found for file: {file_path}'
+            }
+        
+        # Collect statistics
+        vector_details = []
+        first_added = min(v.created_at for v in vectors_to_delete)
+        last_added = max(v.created_at for v in vectors_to_delete)
+        
+        for vector in vectors_to_delete:
+            vector_details.append({
+                'id': vector.id,
+                'content_preview': vector.content[:100] + '...' if len(vector.content) > 100 else vector.content,
+                'created_at': vector.created_at.isoformat()
+            })
+        
+        return {
+            'preview': True,
+            'vectors_to_delete': len(vectors_to_delete),
+            'file_path': file_path,
+            'file_info': {
+                'first_added': first_added.isoformat(),
+                'last_added': last_added.isoformat(),
+                'stored_file_path': vectors_to_delete[0].extra_metadata.get('file_path')
+            },
+            'vector_details': vector_details,
+            'message': f'Would delete {len(vectors_to_delete)} vectors from file: {file_path}'
+        }
